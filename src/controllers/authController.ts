@@ -32,8 +32,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       select: { id: true, name: true, email: true, verified: true },
     });
 
-    // Send verification email via Brevo
-    await BrevoService.sendVerificationEmail(email, name, verifyToken);
+    // Send verification email — non-blocking, don't fail registration if email fails
+    BrevoService.sendVerificationEmail(email, name, verifyToken).catch((err) =>
+      console.error('❌ Verification email failed:', err.message)
+    );
 
     res.status(201).json({
       message: 'Account created! Check your email to verify.',
@@ -55,8 +57,9 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
       data: { verified: true, verifyToken: null },
     });
 
-    // Send welcome email
-    await BrevoService.sendWelcomeEmail(user.email, user.name);
+    BrevoService.sendWelcomeEmail(user.email, user.name).catch((err) =>
+      console.error('❌ Welcome email failed:', err.message)
+    );
 
     res.json({ message: 'Email verified successfully! 🌿' });
   } catch (err) {
@@ -105,8 +108,9 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       data: { resetToken, resetTokenExpiry },
     });
 
-    // Send password reset email via Brevo
-    await BrevoService.sendPasswordResetEmail(email, user.name, resetToken);
+    BrevoService.sendPasswordResetEmail(email, user.name, resetToken).catch((err) =>
+      console.error('❌ Password reset email failed:', err.message)
+    );
 
     res.json({ message: 'Password reset link sent to your email.' });
   } catch (err) {
