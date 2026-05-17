@@ -11,6 +11,7 @@ import blogRoutes from './routes/blog.routes';
 import categoryRoutes from './routes/category.routes';
 import newsletterRoutes from './routes/newsletter.routes';
 import userRoutes from './routes/user.routes';
+import uploadRoutes from './routes/upload.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -49,6 +50,7 @@ app.use('/api/blogs', blogRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.use(errorHandler);
 

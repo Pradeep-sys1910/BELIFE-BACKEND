@@ -22,3 +22,13 @@ services:
         sync: false
       - key: BREVO_API_KEY
         sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: belife
+      - key: R2_PUBLIC_URL
+        value: https://pub-2ae409c286fc4911b15e6e38839790e9.r2.dev
