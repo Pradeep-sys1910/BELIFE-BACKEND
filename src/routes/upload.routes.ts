@@ -20,8 +20,9 @@ router.post('/presign', authenticate, async (req: AuthRequest, res) => {
     const { uploadUrl, publicUrl, key } = await generatePresignedUrl(mimeType, Number(fileSize));
 
     res.json({ uploadUrl, publicUrl, key });
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to generate upload URL' });
+  } catch (err: any) {
+    console.error('❌ Presign error:', err.message);
+    res.status(500).json({ message: 'Failed to generate upload URL', detail: err.message });
   }
 });
 

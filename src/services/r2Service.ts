@@ -44,7 +44,7 @@ export async function generatePresignedUrl(mimeType: string, fileSize: number) {
     Bucket: BUCKET,
     Key: key,
     ContentType: mimeType,
-    ContentLength: fileSize,
+    // ContentLength excluded — browsers don't include it in presigned PUT requests
   });
 
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 }); // 5 min
