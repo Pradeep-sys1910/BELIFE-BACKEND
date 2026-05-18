@@ -22,9 +22,12 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  blogs    Blog[]
-  comments Comment[]
-  likes    Like[]
+  blogs          Blog[]
+  comments       Comment[]
+  likes          Like[]
+  conversations1 Conversation[] @relation("ConvUser1")
+  conversations2 Conversation[] @relation("ConvUser2")
+  sentMessages   Message[]
 
   @@map("users")
 }
@@ -103,4 +106,32 @@ model Newsletter {
   createdAt  DateTime @default(now())
 
   @@map("newsletters")
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  user1Id   String
+  user1     User      @relation("ConvUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User      @relation("ConvUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([user1Id, user2Id])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }

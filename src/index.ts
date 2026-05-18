@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -12,11 +13,15 @@ import categoryRoutes from './routes/category.routes';
 import newsletterRoutes from './routes/newsletter.routes';
 import userRoutes from './routes/user.routes';
 import uploadRoutes from './routes/upload.routes';
+import messageRoutes from './routes/message.routes';
 import { errorHandler } from './middleware/errorHandler';
+import { initSocket } from './socket';
 
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+initSocket(httpServer);
 const PORT = process.env.PORT || 5000;
 
 app.set('trust proxy', 1); // Required for Render/reverse proxy deployments
@@ -52,9 +57,10 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/messages', messageRoutes);
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🌿 BeLife API running on port ${PORT}`);
 });
