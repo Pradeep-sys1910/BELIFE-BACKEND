@@ -78,8 +78,28 @@ export const deleteBlog = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const blog = await prisma.blog.findUnique({ where: { id: req.params.id } });
     if (!blog || blog.authorId !== req.userId) return res.status(403).json({ message: 'Forbidden' });
-    
+
     await prisma.blog.delete({ where: { id: req.params.id } });
     res.json({ message: 'Blog deleted' });
+  } catch (err) { next(err); }
+};
+
+export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const existing = await prisma.like.findUnique({
+      where: { userId_blogId: { userId, blogId: id } },
+    });
+
+    if (existing) {
+      await prisma.like.delete({ where: { userId_blogId: { userId, blogId: id } } });
+    } else {
+      await prisma.like.create({ data: { userId, blogId: id } });
+    }
+
+    const count = await prisma.like.count({ where: { blogId: id } });
+    res.json({ liked: !existing, count });
   } catch (err) { next(err); }
 };
