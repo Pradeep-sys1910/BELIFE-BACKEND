@@ -1,17 +1,53 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-router.put('/profile', authenticate, async (req: AuthRequest, res) => {
-  const { name, bio, avatar } = req.body;
-  const user = await prisma.user.update({
-    where: { id: req.userId },
-    data: { name, bio, avatar },
-    select: { id: true, name: true, email: true, bio: true, avatar: true },
-  });
-  res.json(user);
+router.patch('/profile', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { name, bio, avatar } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { name, bio, avatar },
+      select: { id: true, name: true, email: true, bio: true, avatar: true },
+    });
+    res.json(user);
+  } catch (err) { next(err); }
+});
+
+// Keep PUT for backwards compat
+router.put('/profile', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { name, bio, avatar } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { name, bio, avatar },
+      select: { id: true, name: true, email: true, bio: true, avatar: true },
+    });
+    res.json(user);
+  } catch (err) { next(err); }
+});
+
+router.patch('/password', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) return res.status(401).json({ message: 'Current password is incorrect' });
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } });
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) { next(err); }
 });
 
 export default router;
