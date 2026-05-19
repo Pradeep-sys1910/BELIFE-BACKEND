@@ -143,6 +143,28 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+export const resendVerification = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user || user.verified) {
+      return res.json({ message: 'If the account exists and is unverified, a new link has been sent.' });
+    }
+
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    await prisma.user.update({ where: { id: user.id }, data: { verifyToken } });
+
+    BrevoService.sendVerificationEmail(email, user.name, verifyToken).catch((err) =>
+      console.error('❌ Resend verification email failed:', err.message)
+    );
+
+    res.json({ message: 'Verification email resent.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const me = async (req: any, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({

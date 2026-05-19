@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 const userSelect = { id: true, name: true, avatar: true };
 
 export async function getConversations(req: AuthRequest, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.userId!;
 
   const convs = await prisma.conversation.findMany({
     where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
@@ -38,7 +38,7 @@ export async function getConversations(req: AuthRequest, res: Response) {
 }
 
 export async function getMessages(req: AuthRequest, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.userId!;
   const otherId = req.params.userId;
 
   if (userId === otherId) return res.status(400).json({ message: 'Cannot message yourself' });
@@ -76,7 +76,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
 }
 
 export async function sendMessage(req: AuthRequest, res: Response) {
-  const userId = req.user!.id;
+  const userId = req.userId!;
   const otherId = req.params.userId;
   const { content } = req.body;
 

@@ -23,6 +23,7 @@ async function main() {
       { name: 'Ocean Conservation', slug: 'ocean-conservation', icon: '🌊', description: 'Protecting our oceans and marine life' },
       { name: 'Air Quality', slug: 'air-quality', icon: '🍃', description: 'Clean air tips and pollution reduction' },
       { name: 'Eco Parenting', slug: 'eco-parenting', icon: '👶', description: 'Raising the next generation of eco-warriors' },
+      { name: 'Fitness & Wellness', slug: 'fitness-wellness', icon: '💪', description: 'Natural fitness, gym alternatives and healthy movement' },
     ],
     skipDuplicates: true,
   });

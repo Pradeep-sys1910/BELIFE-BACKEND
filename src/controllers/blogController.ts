@@ -24,11 +24,12 @@ export const createBlog = async (req: AuthRequest, res: Response, next: NextFunc
 
 export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { page = 1, limit = 10, category, search } = req.query;
+    const { page = 1, limit = 10, category, search, author } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     const where: any = { published: true };
     if (category) where.category = { slug: category };
+    if (author) where.authorId = author as string;
     if (search) where.OR = [
       { title: { contains: search as string, mode: 'insensitive' } },
       { excerpt: { contains: search as string, mode: 'insensitive' } },
