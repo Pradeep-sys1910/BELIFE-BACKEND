@@ -20,6 +20,8 @@ model User {
   verifyToken       String?   @unique
   resetToken        String?   @unique
   resetTokenExpiry  DateTime?
+  deleteToken       String?   @unique
+  deleteTokenExpiry DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

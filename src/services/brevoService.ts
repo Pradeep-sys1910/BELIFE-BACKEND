@@ -73,6 +73,15 @@ export class BrevoService {
     });
   }
 
+  static async sendAccountDeletionEmail(to: string, name: string, token: string) {
+    const deleteLink = `${process.env.FRONTEND_URL}/delete-account/${token}`;
+    return this.sendEmail({
+      to, toName: name,
+      subject: '⚠️ Confirm your BeLife account deletion',
+      htmlContent: this.accountDeletionTemplate(name, deleteLink),
+    });
+  }
+
   static async sendNewsletterWelcome(to: string) {
     return this.sendEmail({
       to, toName: 'Friend',
@@ -202,6 +211,68 @@ export class BrevoService {
     </div>
     <div class="footer">
       <p>© ${new Date().getFullYear()} BeLife. Made with 🌿 for the planet.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  private static accountDeletionTemplate(name: string, link: string): string {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #FBF9F1; }
+    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%); padding: 40px; text-align: center; }
+    .logo { color: #ffffff; font-size: 32px; font-weight: bold; font-family: Georgia, serif; }
+    .content { padding: 40px; color: #1F3015; line-height: 1.6; }
+    h1 { font-family: Georgia, serif; color: #7f1d1d; font-size: 24px; margin-bottom: 16px; }
+    .warning-box { background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #ef4444; padding: 16px 20px; border-radius: 8px; margin: 20px 0; }
+    .warning-box ul { margin: 8px 0 0 0; padding-left: 20px; color: #7f1d1d; font-size: 14px; }
+    .warning-box li { margin-bottom: 6px; }
+    .btn { display: inline-block; background: #b91c1c; color: #ffffff !important; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 20px 0; font-size: 15px; }
+    .footer { background: #F5F1E4; padding: 24px; text-align: center; color: #5A7A3F; font-size: 13px; }
+    .link { font-size: 12px; color: #7f1d1d; word-break: break-all; }
+    .ignore { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px 18px; border-radius: 8px; font-size: 13px; color: #166534; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div style="font-size:40px">⚠️</div>
+      <div class="logo">BeLife</div>
+      <p style="color:#fecaca;margin-top:8px;font-size:14px">Account Deletion Request</p>
+    </div>
+    <div class="content">
+      <h1>Hi ${name}, are you sure?</h1>
+      <p>We received a request to permanently delete your BeLife account. Before you proceed, please understand what this means:</p>
+      <div class="warning-box">
+        <strong style="color:#7f1d1d">The following will be permanently deleted:</strong>
+        <ul>
+          <li>Your profile and all personal account data</li>
+          <li>All blog posts and articles you have published</li>
+          <li>All your comments and likes</li>
+          <li>Your messages and conversations</li>
+        </ul>
+      </div>
+      <p style="font-size:14px;color:#374151">
+        <strong>Please note:</strong> As per our
+        <a href="${process.env.FRONTEND_URL}/terms" style="color:#5A7A3F">Terms of Service</a>,
+        BeLife retains a perpetual license to use any content you have previously published on the platform,
+        even after account deletion. Publicly visible content may remain in cached or archived form.
+      </p>
+      <p style="font-weight:600;color:#7f1d1d">This action is irreversible and cannot be undone.</p>
+      <center><a href="${link}" class="btn">Yes, Delete My Account</a></center>
+      <p style="font-size:13px;color:#6b7280">Or copy this link: <br/><span class="link">${link}</span></p>
+      <p style="font-size:13px;color:#6b7280">This link expires in <strong>1 hour</strong>.</p>
+      <div class="ignore">
+        🌿 <strong>Changed your mind?</strong> Simply ignore this email and your account will remain active. No action needed.
+      </div>
+    </div>
+    <div class="footer">
+      <p>© ${new Date().getFullYear()} BeLife. We're sorry to see you go.</p>
     </div>
   </div>
 </body>

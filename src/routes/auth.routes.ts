@@ -11,5 +11,7 @@ router.post('/forgot-password', auth.forgotPassword);
 router.post('/reset-password', auth.resetPassword);
 router.post('/resend-verification', auth.resendVerification);
 router.get('/me', authenticate, auth.me);
+router.post('/request-delete', authenticate, auth.requestDeleteAccount);
+router.delete('/confirm-delete/:token', auth.confirmDeleteAccount);
 
 export default router;

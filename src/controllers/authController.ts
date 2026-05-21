@@ -172,6 +172,48 @@ export const resendVerification = async (req: Request, res: Response, next: Next
   }
 };
 
+export const requestDeleteAccount = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const deleteToken = crypto.randomBytes(32).toString('hex');
+    const deleteTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { deleteToken, deleteTokenExpiry },
+    });
+
+    BrevoService.sendAccountDeletionEmail(user.email, user.name, deleteToken).catch((err) =>
+      console.error('❌ Account deletion email failed:', err.message)
+    );
+
+    res.json({ message: 'Confirmation email sent. Check your inbox to complete deletion.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const confirmDeleteAccount = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token } = req.params;
+
+    const user = await prisma.user.findFirst({
+      where: { deleteToken: token, deleteTokenExpiry: { gt: new Date() } },
+    });
+
+    if (!user) return res.status(400).json({ message: 'Invalid or expired deletion link.' });
+
+    // Cascade deletes handle all related records (blogs, comments, likes, messages, conversations)
+    await prisma.user.delete({ where: { id: user.id } });
+
+    res.json({ message: 'Your account and all associated data have been permanently deleted.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const me = async (req: any, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({
