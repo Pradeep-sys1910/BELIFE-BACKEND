@@ -50,6 +50,17 @@ router.patch('/password', authenticate, async (req: AuthRequest, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/by-id/:id', async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, username: true, avatar: true, bio: true },
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) { next(err); }
+});
+
 router.get('/search', async (req, res, next) => {
   try {
     const q = (req.query.q as string || '').trim();
