@@ -258,10 +258,8 @@ export class BrevoService {
         </ul>
       </div>
       <p style="font-size:14px;color:#374151">
-        <strong>Please note:</strong> As per our
-        <a href="${process.env.FRONTEND_URL}/terms" style="color:#5A7A3F">Terms of Service</a>,
-        BeLife retains a perpetual license to use any content you have previously published on the platform,
-        even after account deletion. Publicly visible content may remain in cached or archived form.
+        <strong>Your content belongs to you.</strong> BeLife does not own any content you have posted.
+        Once your account is deleted, your content will be removed from our platform.
       </p>
       <p style="font-weight:600;color:#7f1d1d">This action is irreversible and cannot be undone.</p>
       <center><a href="${link}" class="btn">Yes, Delete My Account</a></center>
