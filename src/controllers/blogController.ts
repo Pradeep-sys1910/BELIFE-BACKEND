@@ -16,7 +16,7 @@ export const createBlog = async (req: AuthRequest, res: Response, next: NextFunc
         tags: tags || [], readTime: readTime || 5,
         authorId: req.userId!, published: true,
       },
-      include: { author: { select: { name: true, avatar: true } }, category: true },
+      include: { author: { select: { name: true, username: true, avatar: true } }, category: true },
     });
     res.status(201).json(blog);
   } catch (err) { next(err); }
@@ -38,7 +38,7 @@ export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFun
     const [blogs, total] = await Promise.all([
       prisma.blog.findMany({
         where, skip, take: Number(limit),
-        include: { author: { select: { name: true, avatar: true } }, category: true, _count: { select: { likes: true, comments: true } } },
+        include: { author: { select: { name: true, username: true, avatar: true } }, category: true, _count: { select: { likes: true, comments: true } } },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.blog.count({ where }),
@@ -54,7 +54,7 @@ export const getBlogBySlug = async (req: AuthRequest, res: Response, next: NextF
       where: { slug: req.params.slug },
       data: { views: { increment: 1 } },
       include: {
-        author: { select: { name: true, avatar: true, bio: true } },
+        author: { select: { name: true, username: true, avatar: true, bio: true } },
         category: true,
         comments: { include: { author: { select: { name: true, avatar: true } } }, orderBy: { createdAt: 'desc' } },
         _count: { select: { likes: true } },

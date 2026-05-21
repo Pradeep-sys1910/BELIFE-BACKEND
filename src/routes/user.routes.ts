@@ -50,4 +50,27 @@ router.patch('/password', authenticate, async (req: AuthRequest, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/:username/profile', async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true, name: true, username: true, bio: true, avatar: true, createdAt: true },
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const blogs = await prisma.blog.findMany({
+      where: { authorId: user.id, published: true },
+      select: {
+        id: true, title: true, slug: true, excerpt: true, image: true,
+        readTime: true, createdAt: true,
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    res.json({ user, blogs });
+  } catch (err) { next(err); }
+});
+
 export default router;
