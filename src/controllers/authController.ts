@@ -8,31 +8,39 @@ import { z } from 'zod';
 
 const registerSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(20, 'Username must be at most 20 characters')
+    .regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores')
+    .transform((val) => val.toLowerCase().trim()),
+  email: z.string().email().transform((val) => val.toLowerCase().trim()),
   password: z.string().min(8),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email().transform((val) => val.toLowerCase().trim()),
   password: z.string(),
 });
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, email, password } = registerSchema.parse(req.body);
+    const { name, username, email, password } = registerSchema.parse(req.body);
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return res.status(400).json({ message: 'Email already registered' });
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) return res.status(400).json({ message: 'Email already registered' });
+
+    const existingUsername = await prisma.user.findUnique({ where: { username } });
+    if (existingUsername) return res.status(400).json({ message: 'Username already taken. Choose a different one.' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const verifyToken = crypto.randomBytes(32).toString('hex');
 
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, verifyToken },
-      select: { id: true, name: true, email: true, verified: true },
+      data: { name, username, email, password: hashedPassword, verifyToken },
+      select: { id: true, name: true, username: true, email: true, verified: true },
     });
 
-    // Send verification email — non-blocking, don't fail registration if email fails
     BrevoService.sendVerificationEmail(email, name, verifyToken).catch((err) =>
       console.error('❌ Verification email failed:', err.message)
     );
@@ -85,7 +93,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar, verified: user.verified },
+      user: { id: user.id, name: user.name, username: user.username, email: user.email, avatar: user.avatar, verified: user.verified },
     });
   } catch (err) {
     next(err);
@@ -94,14 +102,13 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
 export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
+    const email = (req.body.email as string)?.toLowerCase().trim();
     const user = await prisma.user.findUnique({ where: { email } });
 
-    // Always return success to prevent email enumeration
     if (!user) return res.json({ message: 'If email exists, a reset link has been sent.' });
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+    const resetTokenExpiry = new Date(Date.now() + 3600000);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -145,7 +152,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
 
 export const resendVerification = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
+    const email = (req.body.email as string)?.toLowerCase().trim();
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || user.verified) {
@@ -169,7 +176,7 @@ export const me = async (req: any, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, name: true, email: true, avatar: true, bio: true, verified: true },
+      select: { id: true, name: true, username: true, email: true, avatar: true, bio: true, verified: true },
     });
     res.json(user);
   } catch (err) {
