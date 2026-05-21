@@ -69,8 +69,8 @@ model Blog {
 
   authorId   String
   author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
   comments   Comment[]
   likes      Like[]
 
