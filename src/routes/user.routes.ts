@@ -50,6 +50,24 @@ router.patch('/password', authenticate, async (req: AuthRequest, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/search', async (req, res, next) => {
+  try {
+    const q = (req.query.q as string || '').trim();
+    if (!q) return res.json([]);
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { username: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, name: true, username: true, avatar: true, bio: true },
+      take: 10,
+    });
+    res.json(users);
+  } catch (err) { next(err); }
+});
+
 router.get('/:username/profile', async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
