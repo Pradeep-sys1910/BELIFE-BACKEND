@@ -7,6 +7,8 @@ router.get('/', blog.getAllBlogs);
 router.get('/:slug', blog.getBlogBySlug);
 router.post('/', authenticate, blog.createBlog);
 router.post('/:id/like', authenticate, blog.toggleLike);
+router.post('/:id/comments', authenticate, blog.addComment);
+router.delete('/:id/comments/:commentId', authenticate, blog.deleteComment);
 router.put('/:id', authenticate, blog.updateBlog);
 router.delete('/:id', authenticate, blog.deleteBlog);
 

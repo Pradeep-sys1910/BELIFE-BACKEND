@@ -84,6 +84,32 @@ export const deleteBlog = async (req: AuthRequest, res: Response, next: NextFunc
   } catch (err) { next(err); }
 };
 
+export const addComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ message: 'Content is required' });
+
+    const blog = await prisma.blog.findUnique({ where: { id: req.params.id } });
+    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+
+    const comment = await prisma.comment.create({
+      data: { content: content.trim(), authorId: req.userId!, blogId: req.params.id },
+      include: { author: { select: { name: true, avatar: true } } },
+    });
+    res.status(201).json(comment);
+  } catch (err) { next(err); }
+};
+
+export const deleteComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const comment = await prisma.comment.findUnique({ where: { id: req.params.commentId } });
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+    if (comment.authorId !== req.userId) return res.status(403).json({ message: 'Not your comment' });
+    await prisma.comment.delete({ where: { id: req.params.commentId } });
+    res.json({ message: 'Deleted' });
+  } catch (err) { next(err); }
+};
+
 export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
