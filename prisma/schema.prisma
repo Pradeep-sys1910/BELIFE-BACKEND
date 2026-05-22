@@ -31,6 +31,9 @@ model User {
   conversations1 Conversation[] @relation("ConvUser1")
   conversations2 Conversation[] @relation("ConvUser2")
   sentMessages   Message[]
+  forumThreads   ForumThread[]
+  forumReplies   ForumReply[]
+  forumVotes     ForumVote[]
 
   @@map("users")
 }
@@ -137,4 +140,59 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+enum ForumCategory {
+  GENERAL
+  ZERO_WASTE
+  CLIMATE
+  PLANT_BASED
+  ACTIVISM
+  SUSTAINABLE_LIVING
+  QUESTIONS
+}
+
+model ForumThread {
+  id        String        @id @default(cuid())
+  title     String
+  content   String        @db.Text
+  category  ForumCategory @default(GENERAL)
+  pinned    Boolean       @default(false)
+  views     Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  authorId String
+  author   User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies  ForumReply[]
+  votes    ForumVote[]
+
+  @@index([category, createdAt])
+  @@map("forum_threads")
+}
+
+model ForumReply {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId String
+  author   User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  threadId String
+  thread   ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("forum_replies")
+}
+
+model ForumVote {
+  id       String @id @default(cuid())
+  userId   String
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threadId String
+  thread   ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+  @@map("forum_votes")
 }

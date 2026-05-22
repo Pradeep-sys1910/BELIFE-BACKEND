@@ -14,6 +14,7 @@ import newsletterRoutes from './routes/newsletter.routes';
 import userRoutes from './routes/user.routes';
 import uploadRoutes from './routes/upload.routes';
 import messageRoutes from './routes/message.routes';
+import forumRoutes from './routes/forum.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { initSocket } from './socket';
 
@@ -58,6 +59,7 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/forum', forumRoutes);
 
 app.use(errorHandler);
 
