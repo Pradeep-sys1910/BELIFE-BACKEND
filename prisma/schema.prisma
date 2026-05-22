@@ -34,6 +34,10 @@ model User {
   forumThreads   ForumThread[]
   forumReplies   ForumReply[]
   forumVotes     ForumVote[]
+  groupsCreated  Group[]       @relation("GroupCreator")
+  groupMembers   GroupMember[]
+  groupPosts     GroupPost[]
+  groupPostLikes GroupPostLike[]
 
   @@map("users")
 }
@@ -195,4 +199,74 @@ model ForumVote {
 
   @@unique([userId, threadId])
   @@map("forum_votes")
+}
+
+enum GroupPrivacy {
+  PUBLIC
+  PRIVATE
+}
+
+enum GroupRole {
+  ADMIN
+  MEMBER
+}
+
+model Group {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  image       String?
+  category    ForumCategory @default(GENERAL)
+  privacy     GroupPrivacy  @default(PUBLIC)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  creatorId String
+  creator   User          @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members   GroupMember[]
+  posts     GroupPost[]
+
+  @@index([slug, category])
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  userId  String
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId String
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("group_members")
+}
+
+model GroupPost {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  authorId String
+  author   User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  groupId  String
+  group    Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  likes    GroupPostLike[]
+
+  @@index([groupId, createdAt])
+  @@map("group_posts")
+}
+
+model GroupPostLike {
+  id     String @id @default(cuid())
+  userId String
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   GroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("group_post_likes")
 }
