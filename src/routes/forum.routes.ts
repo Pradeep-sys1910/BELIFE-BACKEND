@@ -13,7 +13,8 @@ router.get('/threads', async (req, res, next) => {
   try {
     const { category, sort = 'latest', search, page = '1' } = req.query as Record<string, string>;
     const limit = 20;
-    const skip = (parseInt(page) - 1) * limit;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const skip = (pageNum - 1) * limit;
 
     const where: any = {};
     if (category && category !== 'ALL') where.category = category;
@@ -38,7 +39,7 @@ router.get('/threads', async (req, res, next) => {
       prisma.forumThread.count({ where }),
     ]);
 
-    res.json({ threads, total, page: parseInt(page), pages: Math.ceil(total / limit) });
+    res.json({ threads, total, page: pageNum, pages: Math.ceil(total / limit) });
   } catch (err) { next(err); }
 });
 

@@ -37,7 +37,7 @@ export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFun
 
     const [blogs, total] = await Promise.all([
       prisma.blog.findMany({
-        where, skip, take: Number(limit),
+        where, skip, take: Math.min(Number(limit) || 10, 50),
         include: { author: { select: { name: true, username: true, avatar: true } }, category: true, _count: { select: { likes: true, comments: true } } },
         orderBy: { createdAt: 'desc' },
       }),
@@ -54,9 +54,9 @@ export const getBlogBySlug = async (req: AuthRequest, res: Response, next: NextF
       where: { slug: req.params.slug },
       data: { views: { increment: 1 } },
       include: {
-        author: { select: { name: true, username: true, avatar: true, bio: true } },
+        author: { select: { id: true, name: true, username: true, avatar: true, bio: true } },
         category: true,
-        comments: { include: { author: { select: { name: true, avatar: true } } }, orderBy: { createdAt: 'desc' } },
+        comments: { include: { author: { select: { id: true, name: true, avatar: true } } }, orderBy: { createdAt: 'desc' } },
         _count: { select: { likes: true } },
       },
     });
@@ -68,8 +68,12 @@ export const updateBlog = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const blog = await prisma.blog.findUnique({ where: { id: req.params.id } });
     if (!blog || blog.authorId !== req.userId) return res.status(403).json({ message: 'Forbidden' });
-    
-    const updated = await prisma.blog.update({ where: { id: req.params.id }, data: req.body });
+
+    const { title, excerpt, content, image, categoryId, tags, readTime } = req.body;
+    const updated = await prisma.blog.update({
+      where: { id: req.params.id },
+      data: { title, excerpt, content, image, categoryId, tags, readTime },
+    });
     res.json(updated);
   } catch (err) { next(err); }
 };

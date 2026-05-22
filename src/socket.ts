@@ -16,8 +16,8 @@ export function initSocket(httpServer: HttpServer) {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('Authentication required'));
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-      socket.data.userId = payload.userId;
+      const payload = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+      socket.data.userId = payload.id;
       next();
     } catch {
       next(new Error('Invalid token'));
