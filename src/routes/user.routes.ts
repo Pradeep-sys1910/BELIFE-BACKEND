@@ -61,10 +61,10 @@ router.get('/by-id/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/search', async (req, res, next) => {
+router.get('/search', authenticate, async (req: AuthRequest, res, next) => {
   try {
     const q = (req.query.q as string || '').trim();
-    if (!q) return res.json([]);
+    if (!q || q.length < 2) return res.json([]);
     const users = await prisma.user.findMany({
       where: {
         OR: [

@@ -105,7 +105,9 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     const email = (req.body.email as string)?.toLowerCase().trim();
     const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user) return res.json({ message: 'If email exists, a reset link has been sent.' });
+    const VAGUE = 'If that email is registered, a reset link has been sent.';
+
+    if (!user) return res.json({ message: VAGUE });
 
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpiry = new Date(Date.now() + 3600000);
@@ -119,7 +121,7 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       console.error('❌ Password reset email failed:', err.message)
     );
 
-    res.json({ message: 'Password reset link sent to your email.' });
+    res.json({ message: VAGUE });
   } catch (err) {
     next(err);
   }

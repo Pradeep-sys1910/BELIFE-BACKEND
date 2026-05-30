@@ -22,7 +22,7 @@ router.post('/presign', authenticate, async (req: AuthRequest, res) => {
     res.json({ uploadUrl, publicUrl, key });
   } catch (err: any) {
     console.error('❌ Presign error:', err.message);
-    res.status(500).json({ message: 'Failed to generate upload URL', detail: err.message });
+    res.status(500).json({ message: 'Failed to generate upload URL' });
   }
 });
 

@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 
 function getKey(): Buffer {
-  const secret = process.env.JWT_SECRET || 'fallback';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set');
   return crypto.createHash('sha256').update(secret).digest();
 }
 
