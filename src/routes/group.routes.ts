@@ -67,6 +67,8 @@ router.post('/', authenticate, async (req: AuthRequest, res, next) => {
   try {
     const { name, description, image, category = 'GENERAL', privacy = 'PUBLIC' } = req.body;
     if (!name?.trim()) return res.status(400).json({ message: 'Name is required' });
+    if (name.length > 100) return res.status(400).json({ message: 'Group name must be under 100 characters' });
+    if (description && description.length > 1000) return res.status(400).json({ message: 'Description must be under 1000 characters' });
 
     const slug = `${slugify(name)}-${Date.now()}`;
 
@@ -124,6 +126,7 @@ router.post('/:id/posts', authenticate, async (req: AuthRequest, res, next) => {
   try {
     const { content } = req.body;
     if (!content?.trim()) return res.status(400).json({ message: 'Content is required' });
+    if (content.length > 5000) return res.status(400).json({ message: 'Post must be under 5000 characters' });
 
     const member = await prisma.groupMember.findUnique({
       where: { userId_groupId: { userId: req.userId!, groupId: req.params.id } },

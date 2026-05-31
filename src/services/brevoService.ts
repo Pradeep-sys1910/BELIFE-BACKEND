@@ -1,5 +1,8 @@
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
 const SENDER = {
   name: process.env.BREVO_SENDER_NAME || 'BeLife',
   email: process.env.BREVO_SENDER_EMAIL || 'noreply@belife.site',
@@ -93,6 +96,7 @@ export class BrevoService {
   // ===== EMAIL TEMPLATES =====
 
   private static verifyEmailTemplate(name: string, link: string): string {
+    name = escapeHtml(name);
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -136,6 +140,7 @@ export class BrevoService {
   }
 
   private static passwordResetTemplate(name: string, link: string): string {
+    name = escapeHtml(name);
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -178,6 +183,7 @@ export class BrevoService {
   }
 
   private static welcomeTemplate(name: string): string {
+    name = escapeHtml(name);
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -218,6 +224,7 @@ export class BrevoService {
   }
 
   private static accountDeletionTemplate(name: string, link: string): string {
+    name = escapeHtml(name);
     return `<!DOCTYPE html>
 <html>
 <head>

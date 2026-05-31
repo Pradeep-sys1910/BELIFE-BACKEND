@@ -25,7 +25,8 @@ export const createBlog = async (req: AuthRequest, res: Response, next: NextFunc
 export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { page = 1, limit = 10, category, search, author } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const pageNum = Math.max(1, Number(page) || 1);
+    const skip = (pageNum - 1) * Math.min(Number(limit) || 10, 50);
 
     const where: any = { published: true };
     if (category) where.category = { slug: category };
@@ -92,6 +93,7 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const { content } = req.body;
     if (!content?.trim()) return res.status(400).json({ message: 'Content is required' });
+    if (content.length > 2000) return res.status(400).json({ message: 'Comment must be under 2000 characters' });
 
     const blog = await prisma.blog.findUnique({ where: { id: req.params.id } });
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
