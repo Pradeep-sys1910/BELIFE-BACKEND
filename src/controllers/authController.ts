@@ -27,6 +27,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { name, username, email, password } = registerSchema.parse(req.body);
 
+    const userCount = await prisma.user.count();
+    if (userCount >= 15) {
+      return res.status(403).json({ message: 'BeLife is currently in closed beta. We\'re not accepting new registrations yet.' });
+    }
+
     const existingEmail = await prisma.user.findUnique({ where: { email } });
     if (existingEmail) return res.status(400).json({ message: 'Email already registered' });
 
