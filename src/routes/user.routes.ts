@@ -79,11 +79,55 @@ router.get('/search', authenticate, async (req: AuthRequest, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /users/:id/follow-status — check if current user follows this user
+router.get('/:id/follow-status', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const follow = await prisma.follow.findUnique({
+      where: { followerId_followingId: { followerId: req.userId!, followingId: req.params.id } },
+    });
+    res.json({ following: !!follow });
+  } catch (err) { next(err); }
+});
+
+// POST /users/:id/follow — toggle follow/unfollow
+router.post('/:id/follow', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const followingId = req.params.id;
+    const followerId = req.userId!;
+
+    if (followerId === followingId) {
+      return res.status(400).json({ message: 'You cannot follow yourself' });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: followingId } });
+    if (!target) return res.status(404).json({ message: 'User not found' });
+
+    const existing = await prisma.follow.findUnique({
+      where: { followerId_followingId: { followerId, followingId } },
+    });
+
+    if (existing) {
+      await prisma.follow.delete({
+        where: { followerId_followingId: { followerId, followingId } },
+      });
+    } else {
+      await prisma.follow.create({ data: { followerId, followingId } });
+    }
+
+    const followerCount = await prisma.follow.count({ where: { followingId } });
+    res.json({ following: !existing, followerCount });
+  } catch (err) { next(err); }
+});
+
+// GET /users/:username/profile — public profile with follower/following counts
 router.get('/:username/profile', async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { username: req.params.username },
-      select: { id: true, name: true, username: true, bio: true, avatar: true, createdAt: true },
+      select: {
+        id: true, name: true, username: true, bio: true, avatar: true, createdAt: true,
+        _count: { select: { followers: true, following: true } },
+      },
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -99,6 +143,40 @@ router.get('/:username/profile', async (req, res, next) => {
     });
 
     res.json({ user, blogs });
+  } catch (err) { next(err); }
+});
+
+// GET /users/:username/followers — list followers
+router.get('/:username/followers', async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { username: req.params.username } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const follows = await prisma.follow.findMany({
+      where: { followingId: user.id },
+      select: { follower: { select: { id: true, name: true, username: true, avatar: true, bio: true } } },
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(follows.map(f => f.follower));
+  } catch (err) { next(err); }
+});
+
+// GET /users/:username/following — list who this user follows
+router.get('/:username/following', async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { username: req.params.username } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const follows = await prisma.follow.findMany({
+      where: { followerId: user.id },
+      select: { following: { select: { id: true, name: true, username: true, avatar: true, bio: true } } },
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(follows.map(f => f.following));
   } catch (err) { next(err); }
 });
 
