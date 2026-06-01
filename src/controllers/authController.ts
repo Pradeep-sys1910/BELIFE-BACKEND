@@ -27,8 +27,9 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { name, username, email, password } = registerSchema.parse(req.body);
 
+    const betaLimit = parseInt(process.env.BETA_USER_LIMIT || '15', 10);
     const userCount = await prisma.user.count();
-    if (userCount >= 15) {
+    if (userCount >= betaLimit) {
       return res.status(403).json({ message: 'BeLife is currently in closed beta. We\'re not accepting new registrations yet.' });
     }
 
