@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
+import { notify } from '../lib/notify';
 import { AuthRequest } from '../middleware/auth';
 
 const slugify = (text: string) =>
@@ -9,7 +10,7 @@ export const createBlog = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const { title, excerpt, content, image, categoryId, tags, readTime } = req.body;
     const slug = `${slugify(title)}-${Date.now()}`;
-    
+
     const blog = await prisma.blog.create({
       data: {
         title, slug, excerpt, content, image, categoryId,
@@ -26,20 +27,24 @@ export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFun
   try {
     const { page = 1, limit = 10, category, search, author } = req.query;
     const pageNum = Math.max(1, Number(page) || 1);
-    const skip = (pageNum - 1) * Math.min(Number(limit) || 10, 50);
+    const skip    = (pageNum - 1) * Math.min(Number(limit) || 10, 50);
 
     const where: any = { published: true };
     if (category) where.category = { slug: category };
-    if (author) where.authorId = author as string;
-    if (search) where.OR = [
-      { title: { contains: search as string, mode: 'insensitive' } },
+    if (author)   where.authorId = author as string;
+    if (search)   where.OR = [
+      { title:   { contains: search as string, mode: 'insensitive' } },
       { excerpt: { contains: search as string, mode: 'insensitive' } },
     ];
 
     const [blogs, total] = await Promise.all([
       prisma.blog.findMany({
         where, skip, take: Math.min(Number(limit) || 10, 50),
-        include: { author: { select: { name: true, username: true, avatar: true } }, category: true, _count: { select: { likes: true, comments: true } } },
+        include: {
+          author:   { select: { name: true, username: true, avatar: true } },
+          category: true,
+          _count:   { select: { likes: true, comments: true } },
+        },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.blog.count({ where }),
@@ -53,11 +58,14 @@ export const getBlogBySlug = async (req: AuthRequest, res: Response, next: NextF
   try {
     const blog = await prisma.blog.update({
       where: { slug: req.params.slug },
-      data: { views: { increment: 1 } },
+      data:  { views: { increment: 1 } },
       include: {
-        author: { select: { id: true, name: true, username: true, avatar: true, bio: true } },
+        author:   { select: { id: true, name: true, username: true, avatar: true, bio: true } },
         category: true,
-        comments: { include: { author: { select: { id: true, name: true, avatar: true } } }, orderBy: { createdAt: 'desc' } },
+        comments: {
+          include: { author: { select: { id: true, name: true, avatar: true } } },
+          orderBy: { createdAt: 'desc' },
+        },
         _count: { select: { likes: true } },
       },
     });
@@ -73,7 +81,7 @@ export const updateBlog = async (req: AuthRequest, res: Response, next: NextFunc
     const { title, excerpt, content, image, categoryId, tags, readTime } = req.body;
     const updated = await prisma.blog.update({
       where: { id: req.params.id },
-      data: { title, excerpt, content, image, categoryId, tags, readTime },
+      data:  { title, excerpt, content, image, categoryId, tags, readTime },
     });
     res.json(updated);
   } catch (err) { next(err); }
@@ -99,9 +107,14 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
 
     const comment = await prisma.comment.create({
-      data: { content: content.trim(), authorId: req.userId!, blogId: req.params.id },
-      include: { author: { select: { name: true, avatar: true } } },
+      data:    { content: content.trim(), authorId: req.userId!, blogId: req.params.id },
+      include: { author: { select: { id: true, name: true, avatar: true } } },
     });
+
+    // Notify blog author of new comment (fire-and-forget)
+    notify({ type: 'COMMENT', recipientId: blog.authorId, actorId: req.userId!, blogId: blog.id })
+      .catch(() => {});
+
     res.status(201).json(comment);
   } catch (err) { next(err); }
 };
@@ -118,8 +131,8 @@ export const deleteComment = async (req: AuthRequest, res: Response, next: NextF
 
 export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
-    const userId = req.userId!;
+    const { id }  = req.params;
+    const userId  = req.userId!;
 
     const existing = await prisma.like.findUnique({
       where: { userId_blogId: { userId, blogId: id } },
@@ -129,6 +142,13 @@ export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunc
       await prisma.like.delete({ where: { userId_blogId: { userId, blogId: id } } });
     } else {
       await prisma.like.create({ data: { userId, blogId: id } });
+
+      // Notify blog author of new like (fire-and-forget)
+      const blog = await prisma.blog.findUnique({ where: { id }, select: { authorId: true } });
+      if (blog) {
+        notify({ type: 'LIKE', recipientId: blog.authorId, actorId: userId, blogId: id })
+          .catch(() => {});
+      }
     }
 
     const count = await prisma.like.count({ where: { blogId: id } });

@@ -26,21 +26,30 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  blogs          Blog[]
-  comments       Comment[]
-  likes          Like[]
-  conversations1 Conversation[] @relation("ConvUser1")
-  conversations2 Conversation[] @relation("ConvUser2")
-  sentMessages   Message[]
-  forumThreads   ForumThread[]
-  forumReplies   ForumReply[]
-  forumVotes     ForumVote[]
-  groupsCreated  Group[]       @relation("GroupCreator")
-  groupMembers   GroupMember[]
-  groupPosts     GroupPost[]
-  groupPostLikes GroupPostLike[]
-  following      Follow[]      @relation("Following")
-  followers      Follow[]      @relation("Followers")
+  blogs                Blog[]
+  comments             Comment[]
+  likes                Like[]
+  conversations1       Conversation[]       @relation("ConvUser1")
+  conversations2       Conversation[]       @relation("ConvUser2")
+  sentMessages         Message[]
+  forumThreads         ForumThread[]
+  forumReplies         ForumReply[]
+  forumVotes           ForumVote[]
+  groupsCreated        Group[]              @relation("GroupCreator")
+  groupMembers         GroupMember[]
+  groupPosts           GroupPost[]
+  groupPostLikes       GroupPostLike[]
+  following            Follow[]             @relation("Following")
+  followers            Follow[]             @relation("Followers")
+  notifications        Notification[]       @relation("ReceivedNotifications")
+  notificationsSent    Notification[]       @relation("SentNotifications")
+  thoughts             Thought[]
+  thoughtLikes         ThoughtLike[]
+  campaignsCreated     Campaign[]           @relation("CampaignCreator")
+  campaignSupports     CampaignSupport[]
+  challengesCreated    Challenge[]          @relation("ChallengeCreator")
+  challengeSubmissions ChallengeSubmission[]
+  challengeVotes       ChallengeVote[]
 
   @@map("users")
 }
@@ -78,11 +87,12 @@ model Blog {
   updatedAt DateTime @updatedAt
 
   authorId   String
-  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author     User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
   comments   Comment[]
   likes      Like[]
+  notifications Notification[]
 
   @@index([slug, authorId, categoryId])
   @@map("blogs")
@@ -286,4 +296,167 @@ model Follow {
   @@index([followerId])
   @@index([followingId])
   @@map("follows")
+}
+
+// ── Notifications ───────────────────────────────────────────────────────────
+
+enum NotificationType {
+  FOLLOW
+  LIKE
+  COMMENT
+  CAMPAIGN_SUPPORT
+  CHALLENGE_SUBMISSION
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  recipientId String
+  recipient   User   @relation("ReceivedNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String
+  actor       User   @relation("SentNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+
+  blogId  String?
+  blog    Blog?   @relation(fields: [blogId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, createdAt])
+  @@index([recipientId, read])
+  @@map("notifications")
+}
+
+// ── Quick Thoughts ──────────────────────────────────────────────────────────
+
+model Thought {
+  id        String   @id @default(cuid())
+  content   String   @db.VarChar(280)
+  createdAt DateTime @default(now())
+
+  authorId String
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes    ThoughtLike[]
+
+  @@index([authorId, createdAt])
+  @@map("thoughts")
+}
+
+model ThoughtLike {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thoughtId String
+  thought   Thought @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, thoughtId])
+  @@map("thought_likes")
+}
+
+// ── Campaigns ───────────────────────────────────────────────────────────────
+
+enum CampaignStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  title       String
+  slug        String         @unique
+  description String         @db.Text
+  goal        String
+  image       String?
+  category    ForumCategory  @default(GENERAL)
+  status      CampaignStatus @default(ACTIVE)
+  targetCount Int            @default(100)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  creatorId  String
+  creator    User              @relation("CampaignCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  supporters CampaignSupport[]
+  updates    CampaignUpdate[]
+
+  @@index([slug, status])
+  @@map("campaigns")
+}
+
+model CampaignSupport {
+  id         String   @id @default(cuid())
+  joinedAt   DateTime @default(now())
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, campaignId])
+  @@map("campaign_supports")
+}
+
+model CampaignUpdate {
+  id         String   @id @default(cuid())
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_updates")
+}
+
+// ── Writing Challenges ──────────────────────────────────────────────────────
+
+enum ChallengeStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+model Challenge {
+  id          String          @id @default(cuid())
+  title       String
+  prompt      String          @db.Text
+  description String?         @db.Text
+  category    ForumCategory   @default(GENERAL)
+  status      ChallengeStatus @default(ACTIVE)
+  endsAt      DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  creatorId   String
+  creator     User                  @relation("ChallengeCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  submissions ChallengeSubmission[]
+
+  @@index([status, createdAt])
+  @@map("challenges")
+}
+
+model ChallengeSubmission {
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  challengeId String
+  challenge   Challenge     @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  votes       ChallengeVote[]
+
+  @@unique([authorId, challengeId])
+  @@index([challengeId, createdAt])
+  @@map("challenge_submissions")
+}
+
+model ChallengeVote {
+  id           String @id @default(cuid())
+  userId       String
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submissionId String
+  submission   ChallengeSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, submissionId])
+  @@map("challenge_votes")
 }

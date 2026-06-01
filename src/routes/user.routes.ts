@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
+import { notify } from '../lib/notify';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -112,6 +113,7 @@ router.post('/:id/follow', authenticate, async (req: AuthRequest, res, next) => 
       });
     } else {
       await prisma.follow.create({ data: { followerId, followingId } });
+      notify({ type: 'FOLLOW', recipientId: followingId, actorId: followerId }).catch(() => {});
     }
 
     const followerCount = await prisma.follow.count({ where: { followingId } });
