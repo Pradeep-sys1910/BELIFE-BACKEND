@@ -23,6 +23,7 @@ model User {
   deleteToken       String?   @unique
   deleteTokenExpiry DateTime?
   storageUsedBytes  Float     @default(0)
+  onboarded         Boolean   @default(false)
   banned            Boolean   @default(false)
   bannedAt          DateTime?
   bannedReason      String?

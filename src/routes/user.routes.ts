@@ -203,4 +203,59 @@ router.get('/:username/following', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /users/onboard — complete onboarding (follow selected users, mark done)
+router.post('/onboard', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { followIds = [] } = req.body;
+    const userId = req.userId!;
+
+    // Follow selected users (ignore self + already following)
+    if (Array.isArray(followIds) && followIds.length > 0) {
+      const toFollow = (followIds as string[]).filter(id => id !== userId).slice(0, 20);
+      await Promise.allSettled(
+        toFollow.map(followingId =>
+          prisma.follow.upsert({
+            where: { followerId_followingId: { followerId: userId, followingId } },
+            create: { followerId: userId, followingId },
+            update: {},
+          })
+        )
+      );
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { onboarded: true },
+      select: { id: true, name: true, username: true, email: true, avatar: true, bio: true, verified: true, onboarded: true },
+    });
+
+    res.json({ user });
+  } catch (err) { next(err); }
+});
+
+// GET /users/suggested — people to follow (excludes self + already following)
+router.get('/suggested', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.userId!;
+
+    const alreadyFollowing = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const excludeIds = [userId, ...alreadyFollowing.map(f => f.followingId)];
+
+    const users = await prisma.user.findMany({
+      where: { id: { notIn: excludeIds }, verified: true },
+      select: {
+        id: true, name: true, username: true, avatar: true, bio: true,
+        _count: { select: { followers: true, blogs: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 12,
+    });
+
+    res.json(users);
+  } catch (err) { next(err); }
+});
+
 export default router;

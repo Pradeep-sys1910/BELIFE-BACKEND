@@ -99,7 +99,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, username: user.username, email: user.email, avatar: user.avatar, verified: user.verified },
+      user: { id: user.id, name: user.name, username: user.username, email: user.email, avatar: user.avatar, verified: user.verified, onboarded: user.onboarded },
     });
   } catch (err) {
     next(err);
@@ -226,7 +226,7 @@ export const me = async (req: any, res: Response, next: NextFunction) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, name: true, username: true, email: true, avatar: true, bio: true, verified: true },
+      select: { id: true, name: true, username: true, email: true, avatar: true, bio: true, verified: true, onboarded: true },
     });
     res.json(user);
   } catch (err) {
