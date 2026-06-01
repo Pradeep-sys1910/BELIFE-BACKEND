@@ -20,6 +20,7 @@ import notificationRoutes from './routes/notification.routes';
 import thoughtRoutes      from './routes/thought.routes';
 import campaignRoutes     from './routes/campaign.routes';
 import challengeRoutes    from './routes/challenge.routes';
+import bookmarkRoutes     from './routes/bookmark.routes';
 import adminRoutes        from './routes/admin.routes';
 import { errorHandler }   from './middleware/errorHandler';
 import { initSocket }     from './socket';
@@ -109,6 +110,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/thoughts',      thoughtRoutes);
 app.use('/api/campaigns',     campaignRoutes);
 app.use('/api/challenges',    challengeRoutes);
+app.use('/api/bookmarks',     bookmarkRoutes);
 app.use('/api/admin/login',   adminLimiter);
 app.use('/api/admin',         adminRoutes);
 

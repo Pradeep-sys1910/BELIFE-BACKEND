@@ -52,4 +52,25 @@ router.delete('/:id/comments/:commentId', authenticate, blog.deleteComment);
 router.put('/:id', authenticate, blog.updateBlog);
 router.delete('/:id', authenticate, blog.deleteBlog);
 
+// POST /blogs/:id/bookmark — toggle save/unsave
+router.post('/:id/bookmark', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.userId!;
+    const blogId = req.params.id;
+
+    const existing = await prisma.bookmark.findUnique({
+      where: { userId_blogId: { userId, blogId } },
+    });
+
+    if (existing) {
+      await prisma.bookmark.delete({ where: { userId_blogId: { userId, blogId } } });
+    } else {
+      await prisma.bookmark.create({ data: { userId, blogId } });
+    }
+
+    const count = await prisma.bookmark.count({ where: { blogId } });
+    res.json({ bookmarked: !existing, count });
+  } catch (err) { next(err); }
+});
+
 export default router;

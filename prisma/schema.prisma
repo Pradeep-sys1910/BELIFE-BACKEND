@@ -42,6 +42,7 @@ model User {
   groupMembers         GroupMember[]
   groupPosts           GroupPost[]
   groupPostLikes       GroupPostLike[]
+  bookmarks            Bookmark[]
   following            Follow[]             @relation("Following")
   followers            Follow[]             @relation("Followers")
   notifications        Notification[]       @relation("ReceivedNotifications")
@@ -95,6 +96,7 @@ model Blog {
   category   Category? @relation(fields: [categoryId], references: [id])
   comments   Comment[]
   likes      Like[]
+  bookmarks  Bookmark[]
   notifications Notification[]
 
   @@index([slug, authorId, categoryId])
@@ -123,6 +125,20 @@ model Like {
 
   @@unique([userId, blogId])
   @@map("likes")
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blogId String
+  blog   Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogId])
+  @@index([userId, createdAt])
+  @@map("bookmarks")
 }
 
 model Newsletter {
