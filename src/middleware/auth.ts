@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma';
 
 export interface AuthRequest extends Request {
   userId?: string;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'No token provided' });
@@ -14,6 +15,13 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+    // Check banned status on every authenticated request
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, banned: true },
+    });
+    if (!user) return res.status(401).json({ message: 'User not found' });
+    if (user.banned) return res.status(403).json({ message: 'Your account has been suspended. Contact support.' });
     req.userId = decoded.id;
     next();
   } catch {

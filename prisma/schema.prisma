@@ -23,6 +23,9 @@ model User {
   deleteToken       String?   @unique
   deleteTokenExpiry DateTime?
   storageUsedBytes  Float     @default(0)
+  banned            Boolean   @default(false)
+  bannedAt          DateTime?
+  bannedReason      String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -459,4 +462,20 @@ model ChallengeVote {
 
   @@unique([userId, submissionId])
   @@map("challenge_votes")
+}
+
+// ── Admin ───────────────────────────────────────────────────────────────────
+
+model AdminLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetId   String
+  targetType String
+  note       String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("admin_logs")
 }
