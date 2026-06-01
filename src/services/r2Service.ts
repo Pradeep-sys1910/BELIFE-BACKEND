@@ -54,6 +54,7 @@ export async function generatePresignedUrl(mimeType: string, fileSize: number) {
     Bucket: bucket,
     Key: key,
     ContentType: mimeType,
+    ContentLength: fileSize,
   });
 
   const s3 = getClient();

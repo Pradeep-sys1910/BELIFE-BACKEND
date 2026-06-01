@@ -1,8 +1,9 @@
 import crypto from 'crypto';
 
 function getKey(): Buffer {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET environment variable is not set');
+  // Use dedicated encryption secret; fall back to JWT_SECRET for existing deployments
+  const secret = process.env.ENCRYPTION_SECRET || process.env.JWT_SECRET;
+  if (!secret) throw new Error('ENCRYPTION_SECRET environment variable is not set');
   return crypto.createHash('sha256').update(secret).digest();
 }
 

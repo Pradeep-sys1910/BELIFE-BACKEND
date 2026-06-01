@@ -6,12 +6,31 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+function validateProfileFields(name: any, bio: any, avatar: any): string | null {
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim().length < 2) return 'Name must be at least 2 characters';
+    if (name.length > 100) return 'Name max 100 characters';
+  }
+  if (bio !== undefined && bio !== null) {
+    if (typeof bio !== 'string') return 'Bio must be a string';
+    if (bio.length > 500) return 'Bio max 500 characters';
+  }
+  if (avatar !== undefined && avatar !== null) {
+    if (typeof avatar !== 'string') return 'Avatar must be a URL string';
+    if (avatar.length > 500) return 'Avatar URL too long';
+    if (!avatar.startsWith('https://')) return 'Avatar must be a secure HTTPS URL';
+  }
+  return null;
+}
+
 router.patch('/profile', authenticate, async (req: AuthRequest, res, next) => {
   try {
     const { name, bio, avatar } = req.body;
+    const err = validateProfileFields(name, bio, avatar);
+    if (err) return res.status(400).json({ message: err });
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data: { name, bio, avatar },
+      data: { name: name?.trim(), bio, avatar },
       select: { id: true, name: true, email: true, bio: true, avatar: true },
     });
     res.json(user);
@@ -22,9 +41,11 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res, next) => {
 router.put('/profile', authenticate, async (req: AuthRequest, res, next) => {
   try {
     const { name, bio, avatar } = req.body;
+    const err = validateProfileFields(name, bio, avatar);
+    if (err) return res.status(400).json({ message: err });
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data: { name, bio, avatar },
+      data: { name: name?.trim(), bio, avatar },
       select: { id: true, name: true, email: true, bio: true, avatar: true },
     });
     res.json(user);

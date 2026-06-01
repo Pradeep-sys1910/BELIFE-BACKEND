@@ -9,6 +9,9 @@ const slugify = (text: string) =>
 export const createBlog = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { title, excerpt, content, image, categoryId, tags, readTime } = req.body;
+    if (!title?.trim())        return res.status(400).json({ message: 'Title is required' });
+    if (title.length > 200)    return res.status(400).json({ message: 'Title max 200 chars' });
+    if (content?.length > 100_000) return res.status(400).json({ message: 'Content max 100,000 chars' });
     const slug = `${slugify(title)}-${Date.now()}`;
 
     const blog = await prisma.blog.create({
@@ -54,7 +57,7 @@ export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFun
   } catch (err) { next(err); }
 };
 
-export const getBlogBySlug = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getBlogBySlug = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const blog = await prisma.blog.update({
       where: { slug: req.params.slug },
@@ -79,6 +82,8 @@ export const updateBlog = async (req: AuthRequest, res: Response, next: NextFunc
     if (!blog || blog.authorId !== req.userId) return res.status(403).json({ message: 'Forbidden' });
 
     const { title, excerpt, content, image, categoryId, tags, readTime } = req.body;
+    if (title?.length > 200)       return res.status(400).json({ message: 'Title max 200 chars' });
+    if (content?.length > 100_000) return res.status(400).json({ message: 'Content max 100,000 chars' });
     const updated = await prisma.blog.update({
       where: { id: req.params.id },
       data:  { title, excerpt, content, image, categoryId, tags, readTime },

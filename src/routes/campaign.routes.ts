@@ -62,6 +62,10 @@ router.post('/', authenticate, async (req: AuthRequest, res, next) => {
     if (!description?.trim()) return res.status(400).json({ message: 'Description is required' });
     if (!goal?.trim())        return res.status(400).json({ message: 'Goal is required' });
     if (title.length > 120)   return res.status(400).json({ message: 'Title max 120 chars' });
+    if (description.length > 5000) return res.status(400).json({ message: 'Description max 5000 chars' });
+    if (image && (!image.startsWith('https://') || image.length > 500)) {
+      return res.status(400).json({ message: 'Image must be a valid HTTPS URL' });
+    }
 
     const slug = `${slugify(title)}-${Date.now()}`;
 

@@ -64,12 +64,30 @@ const forgotLimiter = rateLimit({
   message:  { message: 'Too many reset requests, please try again in an hour.' },
   standardHeaders: true, legacyHeaders: false,
 });
+const resendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 3,
+  message:  { message: 'Too many verification emails, please try again in an hour.' },
+  standardHeaders: true, legacyHeaders: false,
+});
+const presignLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 30,
+  message:  { message: 'Upload limit reached, please try again later.' },
+  standardHeaders: true, legacyHeaders: false,
+});
+const followLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 20,
+  message:  { message: 'Too many follow actions, slow down.' },
+  standardHeaders: true, legacyHeaders: false,
+});
 
 app.get('/health', (_, res) => res.json({ status: '🌿 BeLife API is healthy' }));
 
-app.use('/api/auth/login',          authLimiter);
-app.use('/api/auth/register',       authLimiter);
-app.use('/api/auth/forgot-password', forgotLimiter);
+app.use('/api/auth/login',                   authLimiter);
+app.use('/api/auth/register',               authLimiter);
+app.use('/api/auth/forgot-password',        forgotLimiter);
+app.use('/api/auth/resend-verification',    resendLimiter);
+app.use('/api/upload/presign',              presignLimiter);
+app.use('/api/users',                       followLimiter);
 
 app.use('/api/auth',          authRoutes);
 app.use('/api/blogs',         blogRoutes);

@@ -65,6 +65,13 @@ router.post('/', authenticate, async (req: AuthRequest, res, next) => {
     if (!prompt?.trim()) return res.status(400).json({ message: 'Prompt is required' });
     if (title.length > 120) return res.status(400).json({ message: 'Title max 120 chars' });
 
+    let parsedEndsAt: Date | null = null;
+    if (endsAt) {
+      parsedEndsAt = new Date(endsAt);
+      if (isNaN(parsedEndsAt.getTime())) return res.status(400).json({ message: 'Invalid deadline date' });
+      if (parsedEndsAt <= new Date()) return res.status(400).json({ message: 'Deadline must be in the future' });
+    }
+
     const challenge = await prisma.challenge.create({
       data: {
         title:       title.trim(),
@@ -72,7 +79,7 @@ router.post('/', authenticate, async (req: AuthRequest, res, next) => {
         description: description?.trim(),
         category,
         creatorId:   req.userId!,
-        endsAt:      endsAt ? new Date(endsAt) : null,
+        endsAt:      parsedEndsAt,
       },
       include: { creator: AUTHOR_SELECT, _count: { select: { submissions: true } } },
     });
@@ -117,6 +124,10 @@ router.post('/:id/submissions/:subId/vote', authenticate, async (req: AuthReques
   try {
     const userId       = req.userId!;
     const submissionId = req.params.subId;
+
+    const sub = await prisma.challengeSubmission.findUnique({ where: { id: submissionId }, select: { authorId: true } });
+    if (!sub) return res.status(404).json({ message: 'Submission not found' });
+    if (sub.authorId === userId) return res.status(400).json({ message: 'You cannot vote for your own submission' });
 
     const existing = await prisma.challengeVote.findUnique({
       where: { userId_submissionId: { userId, submissionId } },
