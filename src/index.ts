@@ -21,6 +21,7 @@ import thoughtRoutes      from './routes/thought.routes';
 import campaignRoutes     from './routes/campaign.routes';
 import challengeRoutes    from './routes/challenge.routes';
 import bookmarkRoutes     from './routes/bookmark.routes';
+import contactRoutes      from './routes/contact.routes';
 import adminRoutes        from './routes/admin.routes';
 import { errorHandler }   from './middleware/errorHandler';
 import { initSocket }     from './socket';
@@ -108,6 +109,11 @@ const adminLimiter = rateLimit({
   message:  { message: 'Too many admin login attempts.' },
   standardHeaders: true, legacyHeaders: false,
 });
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 5,
+  message:  { message: 'Too many messages sent. Please try again later.' },
+  standardHeaders: true, legacyHeaders: false,
+});
 
 app.get('/health', (_, res) => res.json({ status: '🌿 BeLife API is healthy' }));
 
@@ -132,6 +138,7 @@ app.use('/api/thoughts',      thoughtRoutes);
 app.use('/api/campaigns',     campaignRoutes);
 app.use('/api/challenges',    challengeRoutes);
 app.use('/api/bookmarks',     bookmarkRoutes);
+app.use('/api/contact',       contactLimiter, contactRoutes);
 app.use('/api/admin/login',   adminLimiter);
 app.use('/api/admin',         adminRoutes);
 

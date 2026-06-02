@@ -13,10 +13,11 @@ interface EmailParams {
   toName: string;
   subject: string;
   htmlContent: string;
+  replyTo?: { email: string; name?: string };
 }
 
 export class BrevoService {
-  static async sendEmail({ to, toName, subject, htmlContent }: EmailParams) {
+  static async sendEmail({ to, toName, subject, htmlContent, replyTo }: EmailParams) {
     const apiKey = process.env.BREVO_API_KEY;
     if (!apiKey) {
       console.error('❌ BREVO_API_KEY is not set');
@@ -26,6 +27,7 @@ export class BrevoService {
     const body = JSON.stringify({
       sender: SENDER,
       to: [{ email: to, name: toName }],
+      ...(replyTo ? { replyTo } : {}),
       subject,
       htmlContent,
     });
@@ -90,6 +92,18 @@ export class BrevoService {
       to, toName: 'Friend',
       subject: 'Welcome to the BeLife newsletter!',
       htmlContent: this.newsletterTemplate(),
+    });
+  }
+
+  /** Delivers a contact-form submission to the support inbox, with the visitor as reply-to. */
+  static async sendContactEmail(fromName: string, fromEmail: string, subject: string, message: string) {
+    const inbox = process.env.CONTACT_INBOX || SENDER.email;
+    return this.sendEmail({
+      to: inbox,
+      toName: 'BeLife Support',
+      subject: `[Contact] ${subject}`,
+      replyTo: { email: fromEmail, name: fromName },
+      htmlContent: this.contactTemplate(fromName, fromEmail, subject, message),
     });
   }
 
@@ -278,6 +292,32 @@ export class BrevoService {
     </div>
     <div class="footer">
       <p>© ${new Date().getFullYear()} BeLife. We're sorry to see you go.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  private static contactTemplate(name: string, email: string, subject: string, message: string): string {
+    const n = escapeHtml(name);
+    const e = escapeHtml(email);
+    const s = escapeHtml(subject);
+    const m = escapeHtml(message).replace(/\n/g, '<br/>');
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;background:#FBF9F1;padding:24px;color:#1F3015">
+  <div style="max-width:600px;margin:auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #EFE9D5">
+    <div style="background:linear-gradient(135deg,#2D4220,#5A7A3F);padding:24px;color:#fff">
+      <div style="font-size:13px;opacity:0.85;letter-spacing:1px;text-transform:uppercase">New contact message</div>
+      <div style="font-size:20px;font-weight:bold;font-family:Georgia,serif;margin-top:4px">${s}</div>
+    </div>
+    <div style="padding:24px;line-height:1.6">
+      <p style="margin:0 0 4px"><strong>From:</strong> ${n} &lt;${e}&gt;</p>
+      <hr style="border:none;border-top:1px solid #EFE9D5;margin:16px 0"/>
+      <p style="white-space:pre-wrap">${m}</p>
+      <hr style="border:none;border-top:1px solid #EFE9D5;margin:16px 0"/>
+      <p style="font-size:13px;color:#5A7A3F">Reply directly to this email to respond to ${n}.</p>
     </div>
   </div>
 </body>
