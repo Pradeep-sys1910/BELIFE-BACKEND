@@ -53,6 +53,34 @@ router.post('/presign', authenticate, async (req: AuthRequest, res, next: NextFu
   }
 });
 
+// POST /upload/release — refund reserved quota when an upload did not complete
+router.post('/release', authenticate, async (req: AuthRequest, res, next: NextFunction) => {
+  try {
+    const { fileSize } = req.body;
+    const size = Number(fileSize);
+    if (isNaN(size) || size <= 0) {
+      return res.status(400).json({ message: 'Invalid file size' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { storageUsedBytes: true },
+    });
+    if (!user) return res.status(401).json({ message: 'User not found' });
+
+    // Never refund below zero
+    const refund = Math.min(size, user.storageUsedBytes);
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data:  { storageUsedBytes: { decrement: refund } },
+    });
+
+    res.json({ released: refund });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /upload/storage — let the user see their own usage
 router.get('/storage', authenticate, async (req: AuthRequest, res, next: NextFunction) => {
   try {

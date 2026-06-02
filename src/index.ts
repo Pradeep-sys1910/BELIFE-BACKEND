@@ -27,6 +27,27 @@ import { initSocket }     from './socket';
 
 dotenv.config();
 
+// ── Fail-fast env validation ──────────────────────────────────────────────────
+// Catch misconfiguration at boot instead of throwing cryptic 500s on every request.
+(() => {
+  const REQUIRED = ['DATABASE_URL', 'JWT_SECRET'];
+  const missing = REQUIRED.filter(k => !process.env[k]?.trim());
+  if (missing.length) {
+    console.error(`❌ Missing required env vars: ${missing.join(', ')}. Refusing to start.`);
+    process.exit(1);
+  }
+  if ((process.env.JWT_SECRET as string).length < 32) {
+    console.error('❌ JWT_SECRET must be at least 32 characters. Refusing to start.');
+    process.exit(1);
+  }
+  // Warn (don't block) on optional-but-important secrets so degraded features are visible.
+  const RECOMMENDED = ['ENCRYPTION_SECRET', 'ADMIN_PASSCODE', 'ADMIN_JWT_SECRET'];
+  const absent = RECOMMENDED.filter(k => !process.env[k]?.trim());
+  if (absent.length) {
+    console.warn(`⚠️  Optional env vars not set (feature may be degraded): ${absent.join(', ')}`);
+  }
+})();
+
 const app        = express();
 const httpServer = createServer(app);
 initSocket(httpServer);
