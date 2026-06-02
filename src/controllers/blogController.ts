@@ -6,9 +6,17 @@ import { AuthRequest } from '../middleware/auth';
 const slugify = (text: string) =>
   text.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
 
+// Keep only valid, secure attachment URLs (max 10).
+const sanitizeAttachments = (input: unknown): string[] => {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((u): u is string => typeof u === 'string' && u.startsWith('https://') && u.length <= 500)
+    .slice(0, 10);
+};
+
 export const createBlog = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { title, excerpt, content, image, categoryId, tags, readTime } = req.body;
+    const { title, excerpt, content, image, categoryId, tags, readTime, attachments } = req.body;
     if (!title?.trim())        return res.status(400).json({ message: 'Title is required' });
     if (title.length > 200)    return res.status(400).json({ message: 'Title max 200 chars' });
     if (content?.length > 100_000) return res.status(400).json({ message: 'Content max 100,000 chars' });
@@ -18,6 +26,7 @@ export const createBlog = async (req: AuthRequest, res: Response, next: NextFunc
       data: {
         title, slug, excerpt, content, image, categoryId,
         tags: tags || [], readTime: readTime || 5,
+        attachments: sanitizeAttachments(attachments),
         authorId: req.userId!, published: true,
       },
       include: { author: { select: { name: true, username: true, avatar: true } }, category: true },
@@ -81,12 +90,15 @@ export const updateBlog = async (req: AuthRequest, res: Response, next: NextFunc
     const blog = await prisma.blog.findUnique({ where: { id: req.params.id } });
     if (!blog || blog.authorId !== req.userId) return res.status(403).json({ message: 'Forbidden' });
 
-    const { title, excerpt, content, image, categoryId, tags, readTime } = req.body;
+    const { title, excerpt, content, image, categoryId, tags, readTime, attachments } = req.body;
     if (title?.length > 200)       return res.status(400).json({ message: 'Title max 200 chars' });
     if (content?.length > 100_000) return res.status(400).json({ message: 'Content max 100,000 chars' });
     const updated = await prisma.blog.update({
       where: { id: req.params.id },
-      data:  { title, excerpt, content, image, categoryId, tags, readTime },
+      data:  {
+        title, excerpt, content, image, categoryId, tags, readTime,
+        ...(attachments !== undefined ? { attachments: sanitizeAttachments(attachments) } : {}),
+      },
     });
     res.json(updated);
   } catch (err) { next(err); }
