@@ -1,0 +1,24 @@
+name: Keep API Warm
+
+# Render's free tier sleeps after ~15 min of inactivity, causing a ~40s cold start
+# that makes the whole site feel frozen for the next visitor. This pings the health
+# endpoint regularly to keep the dyno awake.
+#
+# NOTE: GitHub's scheduled runs can be delayed under load. For rock-solid uptime during
+# a promotion, also set up a 5-minute monitor at cron-job.org or uptimerobot.com
+# pointing at https://belife-backend.onrender.com/health (both free).
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every 10 minutes
+  workflow_dispatch:          # allow manual runs from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          curl -fsS --max-time 60 https://belife-backend.onrender.com/health \
+            && echo "✅ API is awake" \
+            || echo "⚠️ ping failed (dyno may be cold-starting)"
