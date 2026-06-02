@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { notify } from '../lib/notify';
 import { authenticate, AuthRequest } from '../middleware/auth';
@@ -69,6 +70,36 @@ router.patch('/password', authenticate, async (req: AuthRequest, res, next) => {
     await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } });
 
     res.json({ message: 'Password updated successfully' });
+  } catch (err) { next(err); }
+});
+
+const PREF_KEYS = [
+  'notifyLikes', 'notifyComments', 'notifyFollowers',
+  'emailWeeklyDigest', 'publicProfile', 'showEmail', 'allowMessages',
+] as const;
+const PREF_SELECT = Object.fromEntries(PREF_KEYS.map(k => [k, true]));
+
+// GET /users/preferences — current user's settings
+router.get('/preferences', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const prefs = await prisma.user.findUnique({ where: { id: req.userId }, select: PREF_SELECT });
+    if (!prefs) return res.status(404).json({ message: 'User not found' });
+    res.json(prefs);
+  } catch (err) { next(err); }
+});
+
+// PATCH /users/preferences — update any subset of boolean settings
+router.patch('/preferences', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const data: Record<string, boolean> = {};
+    for (const key of PREF_KEYS) {
+      if (typeof req.body[key] === 'boolean') data[key] = req.body[key];
+    }
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ message: 'No valid preferences provided' });
+    }
+    const updated = await prisma.user.update({ where: { id: req.userId }, data, select: PREF_SELECT });
+    res.json(updated);
   } catch (err) { next(err); }
 });
 
@@ -145,14 +176,37 @@ router.post('/:id/follow', authenticate, async (req: AuthRequest, res, next) => 
 // GET /users/:username/profile — public profile with follower/following counts
 router.get('/:username/profile', async (req, res, next) => {
   try {
+    // Optional auth: figure out if the viewer is the profile owner.
+    let viewerId: string | null = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      try { viewerId = (jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!) as { id: string }).id; }
+      catch { /* ignore bad token — treat as anonymous */ }
+    }
+
     const user = await prisma.user.findUnique({
       where: { username: req.params.username },
       select: {
-        id: true, name: true, username: true, bio: true, avatar: true, createdAt: true,
+        id: true, name: true, username: true, bio: true, avatar: true, email: true, createdAt: true,
+        publicProfile: true, showEmail: true,
         _count: { select: { followers: true, following: true } },
       },
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isOwner = viewerId === user.id;
+
+    // Private profile — hide everything but basic identity from non-owners.
+    if (!user.publicProfile && !isOwner) {
+      return res.json({
+        user: {
+          id: user.id, name: user.name, username: user.username, avatar: user.avatar,
+          bio: null, createdAt: user.createdAt, _count: user._count,
+        },
+        blogs: [],
+        private: true,
+      });
+    }
 
     const blogs = await prisma.blog.findMany({
       where: { authorId: user.id, published: true },
@@ -165,7 +219,11 @@ router.get('/:username/profile', async (req, res, next) => {
       take: 20,
     });
 
-    res.json({ user, blogs });
+    // Strip internal flags; only expose email if opted in (or to the owner).
+    const { publicProfile, showEmail, email, ...safeUser } = user;
+    const responseUser = (showEmail || isOwner) ? { ...safeUser, email } : safeUser;
+
+    res.json({ user: responseUser, blogs });
   } catch (err) { next(err); }
 });
 

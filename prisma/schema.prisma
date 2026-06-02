@@ -24,6 +24,16 @@ model User {
   deleteTokenExpiry DateTime?
   storageUsedBytes  Float     @default(0)
   onboarded         Boolean   @default(false)
+
+  // ── Preferences ──
+  notifyLikes       Boolean   @default(true)
+  notifyComments    Boolean   @default(true)
+  notifyFollowers   Boolean   @default(true)
+  emailWeeklyDigest Boolean   @default(false)
+  publicProfile     Boolean   @default(true)
+  showEmail         Boolean   @default(false)
+  allowMessages     Boolean   @default(true)
+
   banned            Boolean   @default(false)
   bannedAt          DateTime?
   bannedReason      String?

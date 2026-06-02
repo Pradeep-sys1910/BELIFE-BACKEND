@@ -22,6 +22,7 @@ import campaignRoutes     from './routes/campaign.routes';
 import challengeRoutes    from './routes/challenge.routes';
 import bookmarkRoutes     from './routes/bookmark.routes';
 import contactRoutes      from './routes/contact.routes';
+import statsRoutes        from './routes/stats.routes';
 import adminRoutes        from './routes/admin.routes';
 import { errorHandler }   from './middleware/errorHandler';
 import { initSocket }     from './socket';
@@ -139,6 +140,7 @@ app.use('/api/campaigns',     campaignRoutes);
 app.use('/api/challenges',    challengeRoutes);
 app.use('/api/bookmarks',     bookmarkRoutes);
 app.use('/api/contact',       contactLimiter, contactRoutes);
+app.use('/api/stats',         statsRoutes);
 app.use('/api/admin/login',   adminLimiter);
 app.use('/api/admin',         adminRoutes);
 

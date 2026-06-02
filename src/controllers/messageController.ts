@@ -90,8 +90,14 @@ export async function sendMessage(req: AuthRequest, res: Response, next: NextFun
     if (!content?.trim()) return res.status(400).json({ message: 'Message cannot be empty' });
     if (userId === otherId) return res.status(400).json({ message: 'Cannot message yourself' });
 
-    const other = await prisma.user.findUnique({ where: { id: otherId }, select: userSelect });
+    const other = await prisma.user.findUnique({
+      where: { id: otherId },
+      select: { ...userSelect, allowMessages: true },
+    });
     if (!other) return res.status(404).json({ message: 'User not found' });
+    if (!other.allowMessages) {
+      return res.status(403).json({ message: "This user isn't accepting direct messages." });
+    }
 
     let conv = await prisma.conversation.findFirst({
       where: { OR: [{ user1Id: userId, user2Id: otherId }, { user1Id: otherId, user2Id: userId }] },
