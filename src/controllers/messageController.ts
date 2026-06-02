@@ -63,10 +63,14 @@ export async function getMessages(req: AuthRequest, res: Response, next: NextFun
         include: { messages: { orderBy: { createdAt: 'asc' }, include: { sender: { select: userSelect } } } },
       });
     } else {
-      await prisma.message.updateMany({
+      const marked = await prisma.message.updateMany({
         where: { conversationId: conv.id, senderId: otherId, isRead: false },
         data: { isRead: true },
       });
+      // Tell the original sender their messages were just read (live read-receipt).
+      if (marked.count > 0) {
+        try { getIO().to(`user:${otherId}`).emit('messages_read', { conversationId: conv.id, readerId: userId }); } catch {}
+      }
     }
 
     res.json({
