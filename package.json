@@ -7,7 +7,9 @@
     "postinstall": "prisma generate",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "seed": "ts-node prisma/seed.ts",
+    "unseed": "ts-node prisma/unseed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1048.0",
