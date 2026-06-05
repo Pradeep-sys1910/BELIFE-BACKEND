@@ -25,6 +25,7 @@ import contactRoutes      from './routes/contact.routes';
 import statsRoutes        from './routes/stats.routes';
 import adminRoutes        from './routes/admin.routes';
 import { errorHandler }   from './middleware/errorHandler';
+import { verifyAppCheck } from './middleware/appCheck';
 import { initSocket }     from './socket';
 
 dotenv.config();
@@ -78,6 +79,10 @@ app.use(morgan('dev'));
 // Global rate limiter
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 app.use('/api', limiter);
+
+// App attestation wall: rejects cracked/repackaged mobile builds (no-op until
+// APP_CHECK_ENFORCED=true; never affects browser traffic from the website/admin).
+app.use('/api', verifyAppCheck);
 
 // Stricter auth limits
 const authLimiter = rateLimit({

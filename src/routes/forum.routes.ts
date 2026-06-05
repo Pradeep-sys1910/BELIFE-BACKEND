@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -44,7 +44,7 @@ router.get('/threads', async (req, res, next) => {
 });
 
 // GET /forum/threads/:id — single thread with replies
-router.get('/threads/:id', async (req, res, next) => {
+router.get('/threads/:id', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
     const thread = await prisma.forumThread.findUnique({
       where: { id: req.params.id },
@@ -64,7 +64,15 @@ router.get('/threads/:id', async (req, res, next) => {
       data: { views: { increment: 1 } },
     });
 
-    res.json(thread);
+    let isVoted = false;
+    if (req.userId) {
+      const v = await prisma.forumVote.findUnique({
+        where: { userId_threadId: { userId: req.userId, threadId: req.params.id } },
+      });
+      isVoted = !!v;
+    }
+
+    res.json({ ...thread, isVoted });
   } catch (err) { next(err); }
 });
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -40,7 +40,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /groups/:slug — group detail + recent posts
-router.get('/:slug', async (req, res, next) => {
+router.get('/:slug', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
     const group = await prisma.group.findUnique({
       where: { slug: req.params.slug },
@@ -58,7 +58,18 @@ router.get('/:slug', async (req, res, next) => {
       },
     });
     if (!group) return res.status(404).json({ message: 'Group not found' });
-    res.json(group);
+
+    let liked = new Set<string>();
+    if (req.userId && group.posts.length) {
+      const rows = await prisma.groupPostLike.findMany({
+        where: { userId: req.userId, postId: { in: group.posts.map(p => p.id) } },
+        select: { postId: true },
+      });
+      liked = new Set(rows.map(r => r.postId));
+    }
+    const posts = group.posts.map(p => ({ ...p, isLiked: liked.has(p.id) }));
+
+    res.json({ ...group, posts });
   } catch (err) { next(err); }
 });
 

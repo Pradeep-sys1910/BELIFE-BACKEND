@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth';
 import { notify } from '../lib/notify';
 
 const router = Router();
@@ -35,7 +35,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /challenges/:id
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
     const challenge = await prisma.challenge.findUnique({
       where:   { id: req.params.id },
@@ -53,7 +53,18 @@ router.get('/:id', async (req, res, next) => {
       },
     });
     if (!challenge) return res.status(404).json({ message: 'Challenge not found' });
-    res.json(challenge);
+
+    let voted = new Set<string>();
+    if (req.userId && challenge.submissions.length) {
+      const rows = await prisma.challengeVote.findMany({
+        where: { userId: req.userId, submissionId: { in: challenge.submissions.map(s => s.id) } },
+        select: { submissionId: true },
+      });
+      voted = new Set(rows.map(r => r.submissionId));
+    }
+    const submissions = challenge.submissions.map(s => ({ ...s, isVoted: voted.has(s.id) }));
+
+    res.json({ ...challenge, submissions });
   } catch (err) { next(err); }
 });
 

@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import * as blog from '../controllers/blogController';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 
 const router = Router();
-router.get('/', blog.getAllBlogs);
+router.get('/', optionalAuth, blog.getAllBlogs);
 
 // GET /blogs/following — personalized feed from followed users
 router.get('/following', authenticate, async (req: AuthRequest, res, next) => {
@@ -44,7 +44,7 @@ router.get('/following', authenticate, async (req: AuthRequest, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/:slug', blog.getBlogBySlug);
+router.get('/:slug', optionalAuth, blog.getBlogBySlug);
 router.post('/', authenticate, blog.createBlog);
 router.post('/:id/like', authenticate, blog.toggleLike);
 router.post('/:id/comments', authenticate, blog.addComment);

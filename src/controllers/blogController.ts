@@ -62,9 +62,28 @@ export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFun
       prisma.blog.count({ where }),
     ]);
 
-    res.json({ blogs, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+    res.json({ blogs: await withUserState(blogs, req.userId), total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
   } catch (err) { next(err); }
 };
+
+/**
+ * Attach `isLiked` / `isBookmarked` to each blog for the current user (if any),
+ * so the app can render the correct heart/bookmark state on first paint.
+ * Anonymous requests get both flags as false.
+ */
+async function withUserState<T extends { id: string }>(blogs: T[], userId?: string) {
+  if (!userId || blogs.length === 0) {
+    return blogs.map(b => ({ ...b, isLiked: false, isBookmarked: false }));
+  }
+  const blogIds = blogs.map(b => b.id);
+  const [likes, bookmarks] = await Promise.all([
+    prisma.like.findMany({ where: { userId, blogId: { in: blogIds } }, select: { blogId: true } }),
+    prisma.bookmark.findMany({ where: { userId, blogId: { in: blogIds } }, select: { blogId: true } }),
+  ]);
+  const liked = new Set(likes.map(l => l.blogId));
+  const saved = new Set(bookmarks.map(b => b.blogId));
+  return blogs.map(b => ({ ...b, isLiked: liked.has(b.id), isBookmarked: saved.has(b.id) }));
+}
 
 export const getBlogBySlug = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
@@ -81,7 +100,18 @@ export const getBlogBySlug = async (req: AuthRequest, res: Response, _next: Next
         _count: { select: { likes: true } },
       },
     });
-    res.json(blog);
+
+    let isLiked = false, isBookmarked = false;
+    if (req.userId) {
+      const [like, bookmark] = await Promise.all([
+        prisma.like.findUnique({ where: { userId_blogId: { userId: req.userId, blogId: blog.id } } }),
+        prisma.bookmark.findUnique({ where: { userId_blogId: { userId: req.userId, blogId: blog.id } } }),
+      ]);
+      isLiked = !!like;
+      isBookmarked = !!bookmark;
+    }
+
+    res.json({ ...blog, isLiked, isBookmarked });
   } catch { res.status(404).json({ message: 'Blog not found' }); }
 };
 

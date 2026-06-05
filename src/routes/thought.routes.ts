@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 const AUTHOR_SELECT = { select: { id: true, name: true, username: true, avatar: true } };
 
 // GET /thoughts — global feed (most recent)
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
     const { page = '1' } = req.query as Record<string, string>;
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -26,7 +26,18 @@ router.get('/', async (req, res, next) => {
       prisma.thought.count(),
     ]);
 
-    res.json({ thoughts, total, page: pageNum, pages: Math.ceil(total / limit) });
+    // Per-user like state so the heart renders correctly on first paint.
+    let liked = new Set<string>();
+    if (req.userId && thoughts.length) {
+      const rows = await prisma.thoughtLike.findMany({
+        where: { userId: req.userId, thoughtId: { in: thoughts.map(t => t.id) } },
+        select: { thoughtId: true },
+      });
+      liked = new Set(rows.map(r => r.thoughtId));
+    }
+    const withState = thoughts.map(t => ({ ...t, isLiked: liked.has(t.id) }));
+
+    res.json({ thoughts: withState, total, page: pageNum, pages: Math.ceil(total / limit) });
   } catch (err) { next(err); }
 });
 

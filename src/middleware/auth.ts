@@ -28,3 +28,22 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
+
+/**
+ * Like `authenticate`, but never rejects: if a valid token is present it sets
+ * `req.userId`, otherwise the request proceeds anonymously. Used on public read
+ * endpoints (e.g. the blog feed) so we can attach per-user state like `isLiked`
+ * without forcing login.
+ */
+export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!) as { id: string };
+      req.userId = decoded.id;
+    } catch {
+      // Invalid/expired token on a public route — treat as anonymous.
+    }
+  }
+  next();
+};

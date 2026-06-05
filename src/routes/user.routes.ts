@@ -7,6 +7,26 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+// Achievement badges — computed live from existing activity (no extra tables/migration).
+type BadgeStats = {
+  verified: boolean; blogs: number; likes: number; thoughts: number;
+  campaigns: number; groups: number; submissions: number; followers: number;
+};
+const BADGE_DEFS: {
+  key: string; emoji: string; color: string; label: string; desc: string;
+  earned: (s: BadgeStats) => boolean;
+}[] = [
+  { key: 'verified',    emoji: '✅', color: '#38BDF8', label: 'Verified',          desc: 'Verified their email',    earned: s => s.verified },
+  { key: 'firstStory',  emoji: '✍️', color: '#4ADE80', label: 'First Story',       desc: 'Published a story',       earned: s => s.blogs >= 1 },
+  { key: 'storyteller', emoji: '📚', color: '#A78BFA', label: 'Storyteller',       desc: 'Published 5+ stories',    earned: s => s.blogs >= 5 },
+  { key: 'loved',       emoji: '❤️', color: '#F87171', label: 'Loved',             desc: 'Earned 10+ likes',        earned: s => s.likes >= 10 },
+  { key: 'voice',       emoji: '💬', color: '#2DD4BF', label: 'Voice',             desc: 'Shared 5+ thoughts',      earned: s => s.thoughts >= 5 },
+  { key: 'organizer',   emoji: '📢', color: '#FB923C', label: 'Organizer',         desc: 'Started a campaign',      earned: s => s.campaigns >= 1 },
+  { key: 'builder',     emoji: '👥', color: '#A3E635', label: 'Community Builder', desc: 'Created a group',         earned: s => s.groups >= 1 },
+  { key: 'challenger',  emoji: '🏆', color: '#FBBF24', label: 'Challenger',        desc: 'Entered a challenge',     earned: s => s.submissions >= 1 },
+  { key: 'connected',   emoji: '🌟', color: '#4ADE80', label: 'Connected',         desc: 'Reached 5+ followers',    earned: s => s.followers >= 5 },
+];
+
 function validateProfileFields(name: any, bio: any, avatar: any): string | null {
   if (name !== undefined) {
     if (typeof name !== 'string' || name.trim().length < 2) return 'Name must be at least 2 characters';
@@ -170,6 +190,29 @@ router.post('/:id/follow', authenticate, async (req: AuthRequest, res, next) => 
 
     const followerCount = await prisma.follow.count({ where: { followingId } });
     res.json({ following: !existing, followerCount });
+  } catch (err) { next(err); }
+});
+
+// GET /users/:id/badges — achievement badges (earned + locked), computed live
+router.get('/:id/badges', async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const user = await prisma.user.findUnique({ where: { id }, select: { verified: true } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const [blogs, likes, thoughts, campaigns, groups, submissions, followers] = await Promise.all([
+      prisma.blog.count({ where: { authorId: id, published: true } }),
+      prisma.like.count({ where: { blog: { authorId: id } } }),
+      prisma.thought.count({ where: { authorId: id } }),
+      prisma.campaign.count({ where: { creatorId: id } }),
+      prisma.group.count({ where: { creatorId: id } }),
+      prisma.challengeSubmission.count({ where: { authorId: id } }),
+      prisma.follow.count({ where: { followingId: id } }),
+    ]);
+
+    const stats: BadgeStats = { verified: user.verified, blogs, likes, thoughts, campaigns, groups, submissions, followers };
+    const badges = BADGE_DEFS.map(({ earned, ...meta }) => ({ ...meta, earned: earned(stats) }));
+    res.json({ badges });
   } catch (err) { next(err); }
 });
 
