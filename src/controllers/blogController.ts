@@ -37,9 +37,10 @@ export const createBlog = async (req: AuthRequest, res: Response, next: NextFunc
 
 export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { page = 1, limit = 10, category, search, author } = req.query;
-    const pageNum = Math.max(1, Number(page) || 1);
-    const skip    = (pageNum - 1) * Math.min(Number(limit) || 10, 50);
+    const { page = 1, limit = 10, category, search, author, seed } = req.query;
+    const pageNum  = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(Number(limit) || 10, 50);
+    const skip     = (pageNum - 1) * limitNum;
 
     const where: any = { published: true };
     if (category) where.category = { slug: category };
@@ -49,9 +50,31 @@ export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFun
       { excerpt: { contains: search as string, mode: 'insensitive' } },
     ];
 
+    // Shuffled feed: when a seed is supplied (home feed), vary the order on each
+    // open/refresh while staying paginatable. Pull a recent pool and deterministically
+    // shuffle it by the seed. Only for the plain feed (not search / author filters).
+    if (seed && !search && !author) {
+      const POOL = 80;
+      const pool = await prisma.blog.findMany({
+        where, take: POOL,
+        include: {
+          author:   { select: { name: true, username: true, avatar: true } },
+          category: true,
+          _count:   { select: { likes: true, comments: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      const shuffled  = seededShuffle(pool, String(seed));
+      const pageItems = shuffled.slice(skip, skip + limitNum);
+      return res.json({
+        blogs: await withUserState(pageItems, req.userId),
+        total: pool.length, page: pageNum, pages: Math.ceil(pool.length / limitNum),
+      });
+    }
+
     const [blogs, total] = await Promise.all([
       prisma.blog.findMany({
-        where, skip, take: Math.min(Number(limit) || 10, 50),
+        where, skip, take: limitNum,
         include: {
           author:   { select: { name: true, username: true, avatar: true } },
           category: true,
@@ -62,7 +85,7 @@ export const getAllBlogs = async (req: AuthRequest, res: Response, next: NextFun
       prisma.blog.count({ where }),
     ]);
 
-    res.json({ blogs: await withUserState(blogs, req.userId), total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+    res.json({ blogs: await withUserState(blogs, req.userId), total, page: pageNum, pages: Math.ceil(total / limitNum) });
   } catch (err) { next(err); }
 };
 
@@ -83,6 +106,27 @@ async function withUserState<T extends { id: string }>(blogs: T[], userId?: stri
   const liked = new Set(likes.map(l => l.blogId));
   const saved = new Set(bookmarks.map(b => b.blogId));
   return blogs.map(b => ({ ...b, isLiked: liked.has(b.id), isBookmarked: saved.has(b.id) }));
+}
+
+/** Deterministic, seed-driven Fisher-Yates shuffle (mulberry32 PRNG seeded by the string). */
+function seededShuffle<T>(arr: T[], seed: string): T[] {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  const rand = () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 export const getBlogBySlug = async (req: AuthRequest, res: Response, _next: NextFunction) => {

@@ -16,15 +16,15 @@ const BADGE_DEFS: {
   key: string; emoji: string; color: string; label: string; desc: string;
   earned: (s: BadgeStats) => boolean;
 }[] = [
-  { key: 'verified',    emoji: '✅', color: '#38BDF8', label: 'Verified',          desc: 'Verified their email',    earned: s => s.verified },
-  { key: 'firstStory',  emoji: '✍️', color: '#4ADE80', label: 'First Story',       desc: 'Published a story',       earned: s => s.blogs >= 1 },
-  { key: 'storyteller', emoji: '📚', color: '#A78BFA', label: 'Storyteller',       desc: 'Published 5+ stories',    earned: s => s.blogs >= 5 },
-  { key: 'loved',       emoji: '❤️', color: '#F87171', label: 'Loved',             desc: 'Earned 10+ likes',        earned: s => s.likes >= 10 },
-  { key: 'voice',       emoji: '💬', color: '#2DD4BF', label: 'Voice',             desc: 'Shared 5+ thoughts',      earned: s => s.thoughts >= 5 },
-  { key: 'organizer',   emoji: '📢', color: '#FB923C', label: 'Organizer',         desc: 'Started a campaign',      earned: s => s.campaigns >= 1 },
-  { key: 'builder',     emoji: '👥', color: '#A3E635', label: 'Community Builder', desc: 'Created a group',         earned: s => s.groups >= 1 },
-  { key: 'challenger',  emoji: '🏆', color: '#FBBF24', label: 'Challenger',        desc: 'Entered a challenge',     earned: s => s.submissions >= 1 },
-  { key: 'connected',   emoji: '🌟', color: '#4ADE80', label: 'Connected',         desc: 'Reached 5+ followers',    earned: s => s.followers >= 5 },
+  { key: 'verified',    emoji: '🛡️', color: '#38BDF8', label: 'Explorer Verified', desc: 'Verified account and identity', earned: s => s.verified },
+  { key: 'firstStory',  emoji: '👣', color: '#4ADE80', label: 'First Footstep',    desc: 'Shared the first travel story', earned: s => s.blogs >= 1 },
+  { key: 'storyteller', emoji: '📖', color: '#A78BFA', label: 'Trail Recorder',    desc: 'Published 5+ stories', earned: s => s.blogs >= 5 },
+  { key: 'loved',       emoji: '❤️', color: '#F87171', label: 'Local Favorite',    desc: 'Earned 10+ likes', earned: s => s.likes >= 10 },
+  { key: 'voice',       emoji: '💬', color: '#2DD4BF', label: 'Community Voice',   desc: 'Shared 5+ thoughts', earned: s => s.thoughts >= 5 },
+  { key: 'organizer',   emoji: '🗺️', color: '#FB923C', label: 'Route Builder',     desc: 'Started a campaign', earned: s => s.campaigns >= 1 },
+  { key: 'builder',     emoji: '👥', color: '#A3E635', label: 'Community Builder', desc: 'Created a group', earned: s => s.groups >= 1 },
+  { key: 'challenger',  emoji: '🏆', color: '#FBBF24', label: 'Adventure Challenger', desc: 'Entered a challenge', earned: s => s.submissions >= 1 },
+  { key: 'connected',   emoji: '🌟', color: '#4ADE80', label: 'Trusted Guide',     desc: 'Reached 5+ followers', earned: s => s.followers >= 5 },
 ];
 
 function validateProfileFields(name: any, bio: any, avatar: any): string | null {
@@ -197,8 +197,23 @@ router.post('/:id/follow', authenticate, async (req: AuthRequest, res, next) => 
 router.get('/:id/badges', async (req, res, next) => {
   try {
     const id = req.params.id;
-    const user = await prisma.user.findUnique({ where: { id }, select: { verified: true } });
+    const authHeader = req.headers.authorization;
+    let viewerId: string | null = null;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        viewerId = (jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!) as { id: string }).id;
+      } catch {
+        // ignore invalid tokens and treat the request as anonymous
+      }
+    }
+
+    const user = await prisma.user.findUnique({ where: { id }, select: { verified: true, publicProfile: true } });
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isOwner = viewerId === id;
+    if (!isOwner && !user.publicProfile) {
+      return res.status(403).json({ message: 'Badge progress is private for this profile' });
+    }
 
     const [blogs, likes, thoughts, campaigns, groups, submissions, followers] = await Promise.all([
       prisma.blog.count({ where: { authorId: id, published: true } }),
